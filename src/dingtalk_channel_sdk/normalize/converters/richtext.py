@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Tuple
 def convert_rich_text(content: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]], List[Dict[str, Any]]]:
     """从 richText 数组提取拼接文本、@提及（userId / 手机号）与内嵌媒体资源。
 
-    picture/file 段提取为资源（picture 段值即下载码）。脏数据防御：段值非
-    字符串或下载码为空时跳过该段，不影响其余段落；同一下载码在单条消息内
-    去重。
+    对齐 lark channel-sdk 的富文本附件区能力：picture/file 段提取为资源
+    （picture 段值即下载码）。脏数据防御：段值非字符串或下载码为空时跳过
+    该段，不影响其余段落；同一下载码在单条消息内去重。
     """
     mentions: List[Dict[str, Any]] = []
     resources: List[Dict[str, Any]] = []

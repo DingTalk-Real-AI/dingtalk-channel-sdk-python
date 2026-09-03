@@ -1,4 +1,4 @@
-"""download_file_to_file 流式落盘单测。"""
+"""download_file_to_file 流式落盘单测（对齐 lark channel-sdk downloadResourceToFile）。"""
 
 from __future__ import annotations
 

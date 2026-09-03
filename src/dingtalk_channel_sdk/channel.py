@@ -223,7 +223,7 @@ class DingTalkChannel:
         return await asyncio.to_thread(_fetch)
 
     async def download_file_to_file(self, url: str, dest_path: str, timeout: float = 60.0) -> int:
-        """流式下载文件到本地路径，不整块载入内存。
+        """流式下载文件到本地路径，不整块载入内存（对齐 lark channel-sdk 的 downloadResourceToFile）。
 
         SSRF 防护同 download_file；父目录必须已存在；先写同目录临时文件再
         原子重命名，失败不落半截文件。返回写入的字节数。

@@ -138,7 +138,7 @@ def test_convert_reply_body_only():
     assert parse_content("reply", {}, [])[0] == "[引用消息]"
 
 
-# ── richText 附件资源 ──
+# ── richText 附件资源（对齐 lark channel-sdk 富文本附件区）──
 
 
 def test_convert_rich_text_resources():
