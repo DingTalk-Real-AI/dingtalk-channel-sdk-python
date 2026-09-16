@@ -67,7 +67,7 @@ def parse_content(
     if msg_type == "text":
         text = convert_text(content)
     elif msg_type == "richText":
-        text, mentions = convert_rich_text(content)
+        text, mentions, resources = convert_rich_text(content)
     elif msg_type == "picture":
         text, resources = convert_picture(content)
     elif msg_type == "file":

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import tempfile
 import time
 import urllib.request
 from datetime import timedelta
@@ -217,6 +219,47 @@ class DingTalkChannel:
             req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
+
+        return await asyncio.to_thread(_fetch)
+
+    async def download_file_to_file(self, url: str, dest_path: str, timeout: float = 60.0) -> int:
+        """流式下载文件到本地路径，不整块载入内存。
+
+        SSRF 防护同 download_file；父目录必须已存在；先写同目录临时文件再
+        原子重命名，失败不落半截文件。返回写入的字节数。
+        """
+        assert_public_url(url, allowlist=self.cfg.ssrf_allowlist)
+
+        def _fetch() -> int:
+            dest = os.path.abspath(dest_path)
+            parent = os.path.dirname(dest)
+            if not os.path.isdir(parent):
+                raise FileNotFoundError(f"parent directory does not exist: {parent}")
+            n = 0
+            fd, tmp = tempfile.mkstemp(prefix="." + os.path.basename(dest) + ".tmp-", dir=parent)
+            tmp_open = True
+            try:
+                with os.fdopen(fd, "wb") as out:
+                    tmp_open = False
+                    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+                    with urllib.request.urlopen(req, timeout=timeout) as resp:
+                        while True:
+                            chunk = resp.read(64 * 1024)
+                            if not chunk:
+                                break
+                            out.write(chunk)
+                            n += len(chunk)
+                os.replace(tmp, dest)
+                tmp = None
+                return n
+            finally:
+                if tmp_open:
+                    os.close(fd)
+                if tmp is not None:
+                    try:
+                        os.remove(tmp)
+                    except OSError:
+                        pass
 
         return await asyncio.to_thread(_fetch)
 

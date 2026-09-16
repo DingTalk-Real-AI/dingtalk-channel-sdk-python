@@ -136,3 +136,42 @@ def test_convert_reply_quote_matrix():
 def test_convert_reply_body_only():
     assert parse_content("reply", {"text": "只有正文"}, [])[0] == "只有正文"
     assert parse_content("reply", {}, [])[0] == "[引用消息]"
+
+
+# ── richText 附件资源 ──
+
+
+def test_convert_rich_text_resources():
+    content = {
+        "richText": [
+            {"type": "text", "text": "图1 "},
+            {"type": "picture", "picture": "dc-1"},
+            {"type": "picture", "picture": "dc-1"},
+            {"type": "picture", "picture": "dc-2"},
+            {"type": "file", "downloadCode": "dc-3", "fileName": "report.pdf"},
+            {"type": "text", "text": " 图2"},
+        ]
+    }
+    text, resources, _ = parse_content("richText", content, [])
+    assert text == "图1  图2"
+    assert resources == [
+        {"type": "image", "downloadCode": "dc-1"},
+        {"type": "image", "downloadCode": "dc-2"},
+        {"type": "file", "downloadCode": "dc-3", "fileName": "report.pdf"},
+    ]
+
+
+def test_convert_rich_text_resources_dirty_data():
+    content = {
+        "richText": [
+            {"type": "picture", "picture": 123},
+            {"type": "picture", "picture": ""},
+            {"type": "picture"},
+            {"type": "file", "downloadCode": 42},
+            {"type": "text", "text": "ok"},
+            "junk-segment",
+        ]
+    }
+    text, resources, _ = parse_content("richText", content, [])
+    assert text == "ok"
+    assert resources == []
