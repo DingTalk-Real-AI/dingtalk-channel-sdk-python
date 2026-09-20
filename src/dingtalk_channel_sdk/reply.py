@@ -6,7 +6,6 @@ import json
 import time
 
 from typing import Optional
-from urllib.parse import quote
 
 from .card import CardClient, CardStreamer
 
@@ -166,11 +165,10 @@ class Reply:
         """换取消息附件下载地址（E9）。"""
         token = await self.tokens.get()
         out = await http_json(
-            "GET",
-            f"{self.cfg.api_base}/v1.0/robot/messageFiles/download"
-            f"?downloadCode={quote(download_code)}&messageId={quote(msg_id)}"
-            f"&robotCode={quote(self.cfg.client_id)}",
+            "POST",
+            f"{self.cfg.api_base}/v1.0/robot/messageFiles/download",
             {"x-acs-dingtalk-access-token": token},
+            {"downloadCode": download_code, "robotCode": self.cfg.client_id},
         )
         return out.get("downloadUrl", "")
 

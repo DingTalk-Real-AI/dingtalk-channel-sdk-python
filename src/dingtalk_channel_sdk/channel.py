@@ -4,10 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import tempfile
+import threading
 import time
 import urllib.request
 from datetime import timedelta
 from typing import Any, Awaitable, Callable, List, Optional
+
+from .compat import to_thread
 
 from .safety.batching import BatchConfig, BatchedMessage, MessageBatcher
 from .bot_identity import BotIdentity, BotIdentityProvider
@@ -36,6 +41,16 @@ MessageHandler = Callable[[IncomingMessage, Reply], Awaitable[None]]
 CardActionHandler = Callable[[CardAction, Reply], Awaitable[None]]
 BatchMessageHandler = Callable[[BatchedMessage, Reply], Awaitable[None]]
 RejectHandler = Callable[[RejectEvent], Awaitable[None]]
+
+
+class _SSRFSafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def __init__(self, allowlist: Optional[List[str]] = None):
+        super().__init__()
+        self.allowlist = allowlist
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        assert_public_url(newurl, allowlist=self.allowlist)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 class DingTalkChannel:
@@ -215,10 +230,80 @@ class DingTalkChannel:
 
         def _fetch() -> bytes:
             req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return resp.read()
+            opener = urllib.request.build_opener(_SSRFSafeRedirectHandler(allowlist=self.cfg.ssrf_allowlist))
+            with opener.open(req, timeout=timeout) as resp:
+                data = resp.read()
+                cl = resp.headers.get("Content-Length")
+                if cl is not None:
+                    try:
+                        expected = int(cl)
+                        if len(data) != expected:
+                            raise OSError(f"download truncated: expected {expected} bytes, got {len(data)}")
+                    except ValueError:
+                        pass
+                return data
 
-        return await asyncio.to_thread(_fetch)
+        return await to_thread(_fetch)
+
+    async def download_file_to_file(self, url: str, dest_path: str, timeout: float = 60.0) -> int:
+        """流式下载文件到本地路径，不整块载入内存。
+
+        SSRF 防护同 download_file；父目录必须已存在；先写同目录临时文件再
+        原子重命名，失败不落半截文件。返回写入的字节数。
+        """
+        assert_public_url(url, allowlist=self.cfg.ssrf_allowlist)
+
+        def _fetch(cancel_event: threading.Event) -> int:
+            dest = os.path.abspath(dest_path)
+            parent = os.path.dirname(dest)
+            if not os.path.isdir(parent):
+                raise FileNotFoundError(f"parent directory does not exist: {parent}")
+            n = 0
+            fd, tmp = tempfile.mkstemp(prefix="." + os.path.basename(dest) + ".tmp-", dir=parent)
+            tmp_open = True
+            try:
+                with os.fdopen(fd, "wb") as out:
+                    tmp_open = False
+                    req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+                    opener = urllib.request.build_opener(_SSRFSafeRedirectHandler(allowlist=self.cfg.ssrf_allowlist))
+                    with opener.open(req, timeout=timeout) as resp:
+                        cl = resp.headers.get("Content-Length")
+                        expected: Optional[int] = None
+                        if cl is not None:
+                            try:
+                                expected = int(cl)
+                            except ValueError:
+                                expected = None
+                        while True:
+                            if cancel_event.is_set():
+                                raise RuntimeError("download cancelled")
+                            chunk = resp.read(64 * 1024)
+                            if not chunk:
+                                break
+                            out.write(chunk)
+                            n += len(chunk)
+                        if expected is not None and n != expected:
+                            raise OSError(f"download truncated: expected {expected} bytes, got {n}")
+                if cancel_event.is_set():
+                    raise RuntimeError("download cancelled")
+                os.replace(tmp, dest)
+                tmp = None
+                return n
+            finally:
+                if tmp_open:
+                    os.close(fd)
+                if tmp is not None:
+                    try:
+                        os.remove(tmp)
+                    except OSError:
+                        pass
+
+        cancel_ev = threading.Event()
+        try:
+            return await to_thread(_fetch, cancel_ev)
+        except asyncio.CancelledError:
+            cancel_ev.set()
+            raise
 
     async def mark_thinking(self, conversation_id: str, msg_id: str) -> None:
         """在用户消息上打"🤔Thinking"状态章（仅人发的消息）。"""

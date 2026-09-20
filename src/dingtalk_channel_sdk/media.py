@@ -8,6 +8,7 @@ import time
 import urllib.parse
 import urllib.request
 
+from .compat import to_thread
 from .config import Config
 
 DEFAULT_OAPI_BASE = "https://oapi.dingtalk.com"
@@ -36,7 +37,7 @@ class OapiClient:
 
         media_type: image | file | video | voice
         """
-        token = await asyncio.to_thread(self._get_token)
+        token = await to_thread(self._get_token)
         if not content_type:
             content_type = "image/jpeg" if media_type == "image" else "application/octet-stream"
 
@@ -64,7 +65,7 @@ class OapiClient:
             except urllib.error.HTTPError as e:
                 raise RuntimeError(f"media/upload: http {e.code} {e.read().decode('utf-8', 'replace')}") from e
 
-        out = await asyncio.to_thread(_do_upload)
+        out = await to_thread(_do_upload)
         if out.get("errcode") not in (0, None):
             raise RuntimeError(f"media/upload: errcode={out.get('errcode')} {out.get('errmsg', '')}")
         media_id = out.get("media_id") or ""
