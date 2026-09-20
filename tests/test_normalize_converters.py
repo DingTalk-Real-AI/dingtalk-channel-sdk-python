@@ -138,17 +138,19 @@ def test_convert_reply_body_only():
     assert parse_content("reply", {}, [])[0] == "[引用消息]"
 
 
-# ── richText 附件资源（对齐 lark channel-sdk 富文本附件区）──
+# ── richText 附件资源 ──
 
 
 def test_convert_rich_text_resources():
     content = {
         "richText": [
             {"type": "text", "text": "图1 "},
+            {"type": "picture", "downloadCode": "dc-1"},
+            {"type": "picture", "pictureDownloadCode": "dc-1"},
             {"type": "picture", "picture": "dc-1"},
-            {"type": "picture", "picture": "dc-1"},
-            {"type": "picture", "picture": "dc-2"},
-            {"type": "file", "downloadCode": "dc-3", "fileName": "report.pdf"},
+            {"type": "picture", "pictureDownloadCode": "dc-2"},
+            {"type": "picture", "picture": "dc-3"},
+            {"type": "file", "downloadCode": "dc-4", "fileName": "report.pdf"},
             {"type": "text", "text": " 图2"},
         ]
     }
@@ -157,7 +159,8 @@ def test_convert_rich_text_resources():
     assert resources == [
         {"type": "image", "downloadCode": "dc-1"},
         {"type": "image", "downloadCode": "dc-2"},
-        {"type": "file", "downloadCode": "dc-3", "fileName": "report.pdf"},
+        {"type": "image", "downloadCode": "dc-3"},
+        {"type": "file", "downloadCode": "dc-4", "fileName": "report.pdf"},
     ]
 
 

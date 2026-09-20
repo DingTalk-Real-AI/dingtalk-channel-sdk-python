@@ -7,6 +7,8 @@ import json
 import urllib.request
 from typing import Any, Dict, Optional
 
+from .compat import to_thread
+
 
 class ApiError(Exception):
     """钉钉 API 错误；is_qps_limit 判定 403 + code 含 QpsLimit（SPEC §6）。"""
@@ -49,4 +51,4 @@ def _request_sync(method: str, url: str, headers: Dict[str, str], body: Optional
 
 async def http_json(method: str, url: str, headers: Optional[Dict[str, str]] = None,
                     body: Optional[dict] = None) -> Dict[str, Any]:
-    return await asyncio.to_thread(_request_sync, method, url, headers or {}, body)
+    return await to_thread(_request_sync, method, url, headers or {}, body)
