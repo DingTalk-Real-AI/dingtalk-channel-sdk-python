@@ -23,6 +23,12 @@ dev = [
     "black>=23.0.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python"
+Documentation = "https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python"
+Repository = "https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python.git"
+Issues = "https://github.com/DingTalk-Real-AI/dingtalk-channel-sdk-python/issues"
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
