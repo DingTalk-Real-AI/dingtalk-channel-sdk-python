@@ -4,6 +4,7 @@ from .safety.batching import BatchConfig, BatchedMessage, MessageBatcher
 from .bot_identity import BotIdentity, BotIdentityProvider
 from .card import ApiError as _ApiErrorAlias  # noqa: F401（re-export 由 httpx 提供）
 from .channel import DingTalkChannel
+from .a2ui import A2UIClient, A2UICardResult, DwsA2UIClient, A2UI_FLOW_STATUSES, serialize_a2ui_messages
 from .config import (
     ChatQueueConfig,
     Config,
@@ -29,6 +30,11 @@ from .safety.ssrf_guard import assert_public_url
 
 __all__ = [
     "DingTalkChannel",
+    "A2UIClient",
+    "A2UICardResult",
+    "DwsA2UIClient",
+    "A2UI_FLOW_STATUSES",
+    "serialize_a2ui_messages",
     "Config",
     "Reply",
     "OapiClient",

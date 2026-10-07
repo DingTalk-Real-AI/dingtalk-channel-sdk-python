@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, List, Optional
 
 from .safety.policy import PolicyConfig
+from .a2ui import A2UIClient
 
 DEFAULT_API_BASE = "https://api.dingtalk.com"
 DEFAULT_OAPI_BASE = "https://oapi.dingtalk.com"
@@ -119,6 +120,8 @@ class Config:
     outbound: Optional[OutboundConfig] = None
     #: SSRF 白名单：命中的主机名跳过公网校验（支持通配符 *.example.com）。
     ssrf_allowlist: List[str] = field(default_factory=list)
+    #: 显式配置的 A2UI 发送通道；例如 DwsA2UIClient。
+    a2ui_client: Optional[A2UIClient] = None
 
     def __post_init__(self) -> None:
         if self.transport not in (TRANSPORT_STREAM, TRANSPORT_HTTP):
