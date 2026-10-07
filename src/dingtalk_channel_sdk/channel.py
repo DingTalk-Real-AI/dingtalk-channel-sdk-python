@@ -10,13 +10,14 @@ import threading
 import time
 import urllib.request
 from datetime import timedelta
-from typing import Any, Awaitable, Callable, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 from .compat import to_thread
 
 from .safety.batching import BatchConfig, BatchedMessage, MessageBatcher
 from .bot_identity import BotIdentity, BotIdentityProvider
 from .card import CardClient
+from .a2ui import A2UICardResult, Messages
 from .config import TOPIC_BOT_MESSAGE, TOPIC_CARD_CALLBACK, TRANSPORT_HTTP, USER_AGENT, Config
 from .safety.dedup import Deduper
 from .emotion import Emotion
@@ -214,6 +215,18 @@ class DingTalkChannel:
 
     async def send_markdown(self, target: SendTarget, title: str, text: str) -> None:
         await self.sender.send_markdown(target, title, text)
+
+    async def send_a2ui_card(self, target: Dict[str, str], messages: Messages) -> A2UICardResult:
+        """通过显式配置的 A2UI 通道发送，返回 biz_id 与完整回执。"""
+        if self.cfg.a2ui_client is None:
+            raise RuntimeError("请先配置 a2ui_client（例如 DwsA2UIClient）")
+        return await self.cfg.a2ui_client.send_card(target, messages)
+
+    async def update_a2ui_card(self, biz_id: str, messages: Messages, flow_status: str) -> Dict[str, Any]:
+        """用服务端 biz_id 更新同一卡片，flow_status 必填。"""
+        if self.cfg.a2ui_client is None:
+            raise RuntimeError("请先配置 a2ui_client（例如 DwsA2UIClient）")
+        return await self.cfg.a2ui_client.update_card(biz_id, messages, flow_status)
 
     async def send_image(self, target: SendTarget, image_url: str) -> None:
         await self.sender.send_image(target, image_url)
