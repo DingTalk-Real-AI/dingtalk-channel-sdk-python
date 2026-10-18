@@ -148,3 +148,77 @@ async def test_proactive_send():
     assert sends[1]["body"]["atUserIds"] == ["u1", "u2"]
     assert sends[1]["body"]["openConversationId"] == "cid-g"
     server.shutdown()
+
+
+async def test_download_url_sends_json_content_type():
+    calls = []
+
+    class Handler(BaseHTTPRequestHandler):
+        def _send(self, status: int, v: dict):
+            body = json.dumps(v).encode()
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def do_POST(self):  # noqa: N802
+            length = int(self.headers.get("Content-Length") or 0)
+            raw = self.rfile.read(length)
+            content_type = self.headers.get("Content-Type") or ""
+            calls.append(
+                {
+                    "path": self.path,
+                    "contentType": content_type,
+                    "token": self.headers.get("x-acs-dingtalk-access-token"),
+                    "body": json.loads(raw or b"{}"),
+                }
+            )
+            if self.path.endswith("/accessToken"):
+                self._send(200, {"accessToken": "tok-dl", "expireIn": 7200})
+                return
+            if self.path == "/v1.0/robot/messageFiles/download":
+                if "application/json" not in content_type.lower():
+                    self._send(400, {"code": "Missingbody", "message": "Missingbody"})
+                    return
+                self._send(200, {"downloadUrl": "https://down.dingtalk.com/file/123"})
+                return
+            self._send(404, {})
+
+        def log_message(self, *args):
+            pass
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        base = f"http://127.0.0.1:{server.server_port}"
+        ch = DingTalkChannel(
+            client_id="ding-test",
+            client_secret="s",
+            api_base=base,
+            stream_throttle_s=0.01,
+            card_qps=100,
+        )
+        got_url = []
+
+        @ch.on_message
+        async def handler(msg, reply):
+            got_url.append(await reply.download_url("dl-code-1", msg.msg_id))
+
+        await ch.dispatch_for_test(
+            {
+                "type": "CALLBACK",
+                "headers": {"topic": "/v1.0/im/bot/messages/get", "messageId": "m-dl-1"},
+                "data": json.dumps({"msgId": "b-dl-1", "sessionWebhook": "", "isInAtList": True}),
+            }
+        )
+
+        assert got_url == ["https://down.dingtalk.com/file/123"]
+        dl_calls = [c for c in calls if c["path"] == "/v1.0/robot/messageFiles/download"]
+        assert len(dl_calls) == 1
+        assert dl_calls[0]["contentType"] == "application/json"
+        assert dl_calls[0]["token"] == "tok-dl"
+        assert dl_calls[0]["body"] == {"downloadCode": "dl-code-1", "robotCode": "ding-test"}
+    finally:
+        server.shutdown()
+

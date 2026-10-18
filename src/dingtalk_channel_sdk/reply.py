@@ -167,7 +167,10 @@ class Reply:
         out = await http_json(
             "POST",
             f"{self.cfg.api_base}/v1.0/robot/messageFiles/download",
-            {"x-acs-dingtalk-access-token": token},
+            {
+                "Content-Type": "application/json",
+                "x-acs-dingtalk-access-token": token,
+            },
             {"downloadCode": download_code, "robotCode": self.cfg.client_id},
         )
         return out.get("downloadUrl", "")
