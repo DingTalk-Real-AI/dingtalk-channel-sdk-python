@@ -30,6 +30,71 @@ def test_normalize_richtext():
     assert any(m.get("userId") == "staff-2" for m in msg.mentions)
 
 
+def test_normalize_richtext_with_attachment_without_text_type():
+    """钉钉带附件的 richText 消息：顶层无 text 字段，且 richText 文本段无 type 字段。"""
+    # 群聊：@机器人 + 文本 + 图片
+    data_group = json.dumps({
+        "conversationId": "cid-1",
+        "conversationType": "2",
+        "msgId": "rt-2",
+        "senderStaffId": "staff-1",
+        "senderNick": "John",
+        "sessionWebhook": "",
+        "isInAtList": True,
+        "msgtype": "richText",
+        "content": {
+            "richText": [
+                {"text": "@机器人 请帮我看看这张图"},
+                {"downloadCode": "dc-pic-1", "type": "picture", "pictureDownloadCode": "pdc-1"},
+            ]
+        },
+    })
+    msg_group = normalize_incoming(data_group)
+    assert msg_group.text == "请帮我看看这张图"
+    assert msg_group.resources == [{"type": "image", "downloadCode": "dc-pic-1"}]
+
+    # 单聊真实样本：图片段在前 + {"text": "\n"} + {"text": "请解释下"}（均无 type 字段）
+    data_dm = json.dumps({
+        "senderPlatform": "Win",
+        "conversationId": "cidXxxxxx=",
+        "chatbotCorpId": "dingxxxxxx",
+        "chatbotUserId": "$:LWCP_v1:$xXxxxx",
+        "openThreadId": "cidXxxxxx=",
+        "msgId": "msgsXxxxxxx",
+        "senderNick": "Xxxxx",
+        "isAdmin": True,
+        "senderStaffId": "0000000000-1234334534",
+        "sessionWebhookExpiredTime": 1792294060566,
+        "createAt": 1792288660182,
+        "content": {
+            "richText": [
+                {
+                    "pictureDownloadCode": "EJiwxxxxx",
+                    "downloadCode": "mIoxxxxx",
+                    "type": "picture",
+                },
+                {
+                    "text": "\n",
+                },
+                {
+                    "text": "请解释下",
+                },
+            ]
+        },
+        "senderCorpId": "dingxxxxxx",
+        "conversationType": "1",
+        "senderId": "$:LWCP_v1:$Xxxxxx",
+        "sessionWebhook": "https://oapi.dingtalk.com/robot/sendBySession?session=xxxx",
+        "robotCode": "dingjgxxxxxxxxxxxxxxx",
+        "msgtype": "richText",
+    })
+    msg_dm = normalize_incoming(data_dm)
+    assert msg_dm.text == "请解释下"
+    assert msg_dm.resources == [{"type": "image", "downloadCode": "mIoxxxxx"}]
+
+
+
+
 def test_normalize_picture():
     data = json.dumps({
         "conversationId": "cid-1",

@@ -16,11 +16,14 @@ def convert_rich_text(content: Dict[str, Any]) -> Tuple[str, List[Dict[str, Any]
     resources: List[Dict[str, Any]] = []
     seen: set = set()
     parts: List[str] = []
-    for item in (content or {}).get("richText", []):
+    rich_list = (content or {}).get("richText")
+    if not isinstance(rich_list, list):
+        return "", mentions, resources
+    for item in rich_list:
         if not isinstance(item, dict):
             continue
-        item_type = item.get("type", "")
-        if item_type == "text":
+        item_type = item.get("type") or ""
+        if item_type in ("", "text"):
             text = item.get("text", "")
             if isinstance(text, str):
                 parts.append(text)

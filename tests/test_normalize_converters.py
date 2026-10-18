@@ -178,3 +178,22 @@ def test_convert_rich_text_resources_dirty_data():
     text, resources, _ = parse_content("richText", content, [])
     assert text == "ok"
     assert resources == []
+
+
+def test_convert_rich_text_without_type_field():
+    """钉钉真实 richText 回调中文本段通常不带 type 字段（仅有 {"text": "..."}）。"""
+    content = {
+        "richText": [
+            {"text": "请帮我看看"},
+            {"downloadCode": "dc-img-1", "type": "picture", "pictureDownloadCode": "pdc-1"},
+            {"text": "和这份文档"},
+            {"downloadCode": "dc-file-1", "type": "file", "fileName": "spec.pdf"},
+        ]
+    }
+    text, resources, _ = parse_content("richText", content, [])
+    assert text == "请帮我看看和这份文档"
+    assert resources == [
+        {"type": "image", "downloadCode": "dc-img-1"},
+        {"type": "file", "downloadCode": "dc-file-1", "fileName": "spec.pdf"},
+    ]
+
